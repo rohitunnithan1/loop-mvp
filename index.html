@@ -11,7 +11,6 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { background: #0B0D14; font-family: system-ui, -apple-system, sans-serif; }
     input, textarea, button { font-family: inherit; }
-    input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
     ::-webkit-scrollbar { width: 4px; }
     ::-webkit-scrollbar-track { background: #13151F; }
     ::-webkit-scrollbar-thumb { background: #2A2D40; border-radius: 2px; }
@@ -23,40 +22,61 @@
   <script type="text/babel">
     const { useState, useEffect, useRef } = React;
 
-    // ── Constants ────────────────────────────────────────────────
     const R    = 108;
     const CIRC = +(2 * Math.PI * R).toFixed(2);
 
-    // ── Default stations ─────────────────────────────────────────
+    // ── 10 Stations — 3 rounds × 40s work / 20s rest = 180s ─────
     const DEFAULT_STATIONS = [
-      { id:1, name:"Warm-up",    color:"#10B981", workSecs:180, restSecs:30,
-        exercise:"Bear Crawl",
-        cue:"Hips low, full extension each step. Breathe steadily. Get the body warm and moving." },
-      { id:2, name:"Cardio",     color:"#F97316", workSecs:180, restSecs:30,
-        exercise:"High Knees",
-        cue:"Drive knees to hip height. Stay light on your feet, fast rhythm. Arms pumping forward." },
-      { id:3, name:"Upper Push", color:"#8B5CF6", workSecs:180, restSecs:30,
-        exercise:"Push-ups",
-        cue:"Elbows at 45° from body. Chest to floor, full lockout at the top. Controlled pace." },
-      { id:4, name:"Upper Pull", color:"#3B82F6", workSecs:180, restSecs:30,
-        exercise:"Band Rows",
-        cue:"Drive elbows back, squeeze shoulder blades together. Control the return. Don't shrug." },
-      { id:5, name:"Lower Body", color:"#06B6D4", workSecs:180, restSecs:30,
-        exercise:"Goblet Squat",
-        cue:"Chest tall, knees track over toes. Sit into your heels. Pause at the bottom. Full range." },
-      { id:6, name:"Cool-down",  color:"#14B8A6", workSecs:120, restSecs:0,
-        exercise:"Foam Roll & Stretch",
-        cue:"Breathe into each stretch. Hold 20–30 seconds per area. Let the body slow down and relax." },
+      { id:1,  name:"Warm-up",      color:"#10B981", workSecs:180, restSecs:0,
+        rounds:3, rw:40, rr:20,
+        exercises:["Shoulder Rotation", "Jumping Jacks", "Butt Kick"],
+        cue:"Keep moving continuously — loosen up the joints and raise your body temperature before the work begins." },
+      { id:2,  name:"Cardio",       color:"#F97316", workSecs:180, restSecs:0,
+        rounds:3, rw:40, rr:20,
+        exercises:["High Knees", "High Knees", "High Knees"],
+        cue:"Drive knees to hip height, pump arms, stay light on your feet. Push the pace — this sets the tone for the whole session." },
+      { id:3,  name:"Upper Push",   color:"#8B5CF6", workSecs:180, restSecs:0,
+        rounds:3, rw:40, rr:20,
+        exercises:["Push-ups", "Push-ups", "Push-ups"],
+        cue:"Elbows 45° from body. Chest to floor, full lockout at the top. Too easy — elevate your feet. Too hard — drop to knees. Maintain pace." },
+      { id:4,  name:"Upper Pull",   color:"#3B82F6", workSecs:180, restSecs:0,
+        rounds:3, rw:40, rr:20,
+        exercises:["Band Rows", "Band Rows", "Band Rows"],
+        cue:"Drive elbows back, squeeze shoulder blades at the top. Control the return. Don't shrug — keep shoulders down and away from your ears." },
+      { id:5,  name:"Lower Squat",  color:"#06B6D4", workSecs:180, restSecs:0,
+        rounds:3, rw:40, rr:20,
+        exercises:["Goblet Squat", "Goblet Squat", "Goblet Squat"],
+        cue:"Chest tall, knees track over toes. 3 seconds down, pause at the bottom, drive up through your heels. The slow tempo is the challenge — don't rush it." },
+      { id:6,  name:"Lower Hinge",  color:"#EC4899", workSecs:180, restSecs:0,
+        rounds:3, rw:40, rr:20,
+        exercises:["Romanian Deadlift", "Romanian Deadlift", "Romanian Deadlift"],
+        cue:"Hinge at hips, soft bend in knees. Push hips back until you feel hamstring stretch. Drive hips forward to stand tall. Flat back throughout — no rounding." },
+      { id:7,  name:"Core",         color:"#F59E0B", workSecs:180, restSecs:0,
+        rounds:3, rw:40, rr:20,
+        exercises:["Dead Bug", "Dead Bug", "Dead Bug"],
+        cue:"Lower back pressed into the floor the entire time. Extend opposite arm and leg slowly and under control. Breathe out as you extend. Control beats speed." },
+      { id:8,  name:"Power",        color:"#EF4444", workSecs:180, restSecs:0,
+        rounds:3, rw:40, rr:20,
+        exercises:["Burpees", "Burpees", "Burpees"],
+        cue:"Explode up on the jump, soft landing. Step back instead of jumping if needed. This is the hardest station — max effort for 40 seconds, then you rest." },
+      { id:9,  name:"Cardio 2",     color:"#A78BFA", workSecs:180, restSecs:0,
+        rounds:3, rw:40, rr:20,
+        exercises:["Mountain Climbers", "Mountain Climbers", "Mountain Climbers"],
+        cue:"Hips level with your shoulders — don't let them pike up. Drive knees to chest alternately at pace. Shoulders stay stacked over wrists throughout." },
+      { id:10, name:"Cool-down",    color:"#14B8A6", workSecs:120, restSecs:0,
+        rounds:1, rw:120, rr:0,
+        exercises:["Full Body Stretch"],
+        cue:"Quad stretch, hamstring, hip flexor, chest opener. Hold 20–30 seconds each side. Breathe into every stretch. Let the body slow down — you earned this." },
     ];
 
-    // ── HR zone helper ───────────────────────────────────────────
+    // ── HR zone ──────────────────────────────────────────────────
     function hrZone(bpm) {
-      if (!bpm) return { color: '#4B5280', label: '—', bg: '#4B528018' };
-      if (bpm < 100) return { color: '#3B82F6', label: 'Zone 1', bg: '#3B82F618' };
-      if (bpm < 120) return { color: '#10B981', label: 'Zone 2', bg: '#10B98118' };
-      if (bpm < 140) return { color: '#F59E0B', label: 'Zone 3', bg: '#F59E0B18' };
-      if (bpm < 160) return { color: '#F97316', label: 'Zone 4', bg: '#F9731618' };
-      return { color: '#EF4444', label: 'Zone 5', bg: '#EF444418' };
+      if (!bpm) return { color:'#4B5280', label:'—',      bg:'#4B528018' };
+      if (bpm < 100) return { color:'#3B82F6', label:'Zone 1', bg:'#3B82F618' };
+      if (bpm < 120) return { color:'#10B981', label:'Zone 2', bg:'#10B98118' };
+      if (bpm < 140) return { color:'#F59E0B', label:'Zone 3', bg:'#F59E0B18' };
+      if (bpm < 160) return { color:'#F97316', label:'Zone 4', bg:'#F9731618' };
+      return { color:'#EF4444', label:'Zone 5', bg:'#EF444418' };
     }
 
     // ── Audio ────────────────────────────────────────────────────
@@ -65,38 +85,60 @@
       if (!_ac) _ac = new (window.AudioContext || window.webkitAudioContext)();
       return _ac;
     }
-    function beep(freq, dur = 0.12, vol = 0.28) {
+    function beep(freq, dur=0.12, vol=0.28) {
       try {
-        const c = getCtx(), o = c.createOscillator(), g = c.createGain();
+        const c=getCtx(), o=c.createOscillator(), g=c.createGain();
         o.connect(g); g.connect(c.destination);
-        o.frequency.value = freq;
+        o.frequency.value=freq;
         g.gain.setValueAtTime(vol, c.currentTime);
-        g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + dur);
-        o.start(); o.stop(c.currentTime + dur + 0.05);
+        g.gain.exponentialRampToValueAtTime(0.001, c.currentTime+dur);
+        o.start(); o.stop(c.currentTime+dur+0.05);
       } catch(e) {}
     }
     const tick    = () => beep(440, 0.07, 0.2);
-    const chime   = () => { beep(660, 0.13, 0.3); setTimeout(() => beep(880, 0.2, 0.32), 130); };
-    const fanfare = () => [523,659,784,1047].forEach((f,i) => setTimeout(() => beep(f, 0.32, 0.28), i*170));
+    const chime   = () => { beep(660,0.13,0.3); setTimeout(()=>beep(880,0.2,0.32),130); };
+    const softChime = () => beep(660, 0.15, 0.18);
+    const fanfare = () => [523,659,784,1047].forEach((f,i)=>setTimeout(()=>beep(f,0.32,0.28),i*170));
 
     // ── State machine ────────────────────────────────────────────
+    // Phases: countdown | work | roundrest | rest | done
     function derive(stations, elapsed) {
       if (elapsed < 0) return { phase:'countdown', cd: Math.abs(elapsed) };
       let cursor = 0;
       for (let i = 0; i < stations.length; i++) {
-        const wEnd = cursor + stations[i].workSecs;
-        if (elapsed < wEnd) return {
-          phase:'work', idx:i,
-          left: Math.ceil(wEnd - elapsed),
-          progress: (elapsed - cursor) / stations[i].workSecs,
-        };
-        cursor = wEnd;
-        if (stations[i].restSecs > 0 && i < stations.length - 1) {
-          const rEnd = cursor + stations[i].restSecs;
+        const s = stations[i];
+        const workEnd = cursor + s.workSecs;
+        if (elapsed < workEnd) {
+          const sElapsed = elapsed - cursor;
+          if (s.rounds > 1) {
+            const roundLen  = s.rw + s.rr;
+            const roundIdx  = Math.min(Math.floor(sElapsed / roundLen), s.rounds - 1);
+            const rElapsed  = sElapsed - roundIdx * roundLen;
+            if (rElapsed < s.rw) {
+              return { phase:'work', idx:i,
+                round: roundIdx+1, totalRounds: s.rounds,
+                left: Math.ceil(s.rw - rElapsed),
+                progress: rElapsed / s.rw };
+            } else {
+              return { phase:'roundrest', idx:i,
+                round: roundIdx+1, totalRounds: s.rounds,
+                left: Math.ceil(roundLen - rElapsed),
+                progress: (rElapsed - s.rw) / s.rr };
+            }
+          } else {
+            return { phase:'work', idx:i,
+              round:1, totalRounds:1,
+              left: Math.ceil(workEnd - elapsed),
+              progress: sElapsed / s.workSecs };
+          }
+        }
+        cursor = workEnd;
+        if (s.restSecs > 0 && i < stations.length - 1) {
+          const rEnd = cursor + s.restSecs;
           if (elapsed < rEnd) return {
-            phase:'rest', idx:i, nextIdx: i+1,
+            phase:'rest', idx:i, nextIdx:i+1,
             left: Math.ceil(rEnd - elapsed),
-            progress: (elapsed - cursor) / stations[i].restSecs,
+            progress: (elapsed - cursor) / s.restSecs,
           };
           cursor = rEnd;
         }
@@ -105,14 +147,31 @@
     }
 
     function fmt(s) {
-      return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+      return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+    }
+
+    // Returns elapsed time at the start of station idx
+    function getStationStart(stations, idx) {
+      let cursor = 0;
+      for (let i = 0; i < idx; i++) {
+        cursor += stations[i].workSecs;
+        if (stations[i].restSecs > 0 && i < stations.length - 1) cursor += stations[i].restSecs;
+      }
+      return cursor;
+    }
+
+    // Returns elapsed time at the start of a specific round within a station
+    function getRoundStart(stations, stationIdx, roundIdx) {
+      const base = getStationStart(stations, stationIdx);
+      const s    = stations[stationIdx];
+      return base + roundIdx * (s.rw + s.rr);
     }
 
     // ── Atoms ────────────────────────────────────────────────────
     const iBase = {
       width:'100%', background:'#1A1D2E', border:'1px solid #252940',
       borderRadius:6, color:'white', padding:'7px 10px',
-      fontSize:13, boxSizing:'border-box', outline:'none',
+      fontSize:13, outline:'none',
     };
 
     function FL({ children }) {
@@ -122,44 +181,39 @@
       </div>;
     }
 
-    function NumStepper({ value, onChange, min, max, step=10, unit }) {
-      return (
-        <div style={{ display:'flex', alignItems:'center', gap:6 }}>
-          <button onClick={() => onChange(Math.max(min, value - step))}
-            style={{ width:30, height:30, borderRadius:6, background:'#252940',
-              border:'none', color:'white', fontSize:18, cursor:'pointer', lineHeight:1 }}>−</button>
-          <div style={{ flex:1, textAlign:'center', fontSize:15, fontWeight:700 }}>
-            {value}<span style={{ fontSize:11, color:'#6B7280', marginLeft:3 }}>{unit}</span>
-          </div>
-          <button onClick={() => onChange(Math.min(max, value + step))}
-            style={{ width:30, height:30, borderRadius:6, background:'#252940',
-              border:'none', color:'white', fontSize:18, cursor:'pointer', lineHeight:1 }}>+</button>
-        </div>
-      );
-    }
-
     // ── HR Badge ─────────────────────────────────────────────────
     function HRBadge({ bpm }) {
       const z = hrZone(bpm);
       return (
-        <div style={{
-          position:'absolute', top:16, left:16,
-          background: z.bg,
-          border: `1px solid ${z.color}55`,
+        <div style={{ position:'absolute', top:16, left:16,
+          background:z.bg, border:`1px solid ${z.color}55`,
           borderRadius:10, padding:'8px 14px',
-          display:'flex', flexDirection:'column', alignItems:'center', gap:2,
-          minWidth:72,
-        }}>
-          <div style={{ fontSize:9, color:z.color, fontWeight:700, letterSpacing:'0.12em' }}>
-            ♥ HEART RATE
+          display:'flex', flexDirection:'column', alignItems:'center', gap:2, minWidth:72 }}>
+          <div style={{ fontSize:9, color:z.color, fontWeight:700, letterSpacing:'0.12em' }}>♥ HEART RATE</div>
+          <div style={{ fontSize:28, fontWeight:900, color:bpm?z.color:'#4B5280',
+            lineHeight:1, fontVariantNumeric:'tabular-nums' }}>{bpm??'––'}</div>
+          <div style={{ fontSize:9, color:bpm?z.color:'#4B5280', fontWeight:700 }}>
+            {bpm ? `BPM · ${z.label}` : 'NO SIGNAL'}
           </div>
-          <div style={{ fontSize:28, fontWeight:900, color: bpm ? z.color : '#4B5280',
-            lineHeight:1, fontVariantNumeric:'tabular-nums' }}>
-            {bpm ?? '––'}
-          </div>
-          <div style={{ fontSize:9, color: bpm ? z.color : '#4B5280', fontWeight:700, letterSpacing:'0.08em' }}>
-            {bpm ? 'BPM · ' + z.label : 'NO SIGNAL'}
-          </div>
+        </div>
+      );
+    }
+
+    // ── Round dots ───────────────────────────────────────────────
+    function RoundDots({ round, total, color }) {
+      if (total <= 1) return null;
+      return (
+        <div style={{ display:'flex', gap:6, alignItems:'center', marginBottom:8 }}>
+          {Array.from({ length:total }, (_,i) => (
+            <div key={i} style={{
+              width: i === round-1 ? 10 : 8,
+              height: i === round-1 ? 10 : 8,
+              borderRadius:'50%',
+              background: i < round-1 ? color : i === round-1 ? color : '#1E2130',
+              opacity: i < round-1 ? 0.4 : 1,
+              transition:'all 0.3s',
+            }} />
+          ))}
         </div>
       );
     }
@@ -167,34 +221,31 @@
     // ── Config View ──────────────────────────────────────────────
     function ConfigView({ stations, onUpdate, onStart, hrUrl, onHrUrlChange }) {
       const [openIdx, setOpenIdx] = useState(null);
-      const [showHr, setShowHr]   = useState(false);
-      const total = stations.reduce(
-        (a,s,i) => a + s.workSecs + (i < stations.length-1 ? s.restSecs : 0), 0
+      const [showHr,  setShowHr]  = useState(false);
+      const totalMins = Math.ceil(
+        stations.reduce((a,s,i) => a + s.workSecs + (i < stations.length-1 ? s.restSecs : 0), 0) / 60
       );
 
       return (
         <div style={{ background:'#0B0D14', minHeight:'100vh', color:'white', padding:'22px 16px' }}>
-          {/* Header */}
           <div style={{ textAlign:'center', marginBottom:24 }}>
             <div style={{ fontSize:11, letterSpacing:'0.22em', color:'#4B5280', fontWeight:700, marginBottom:6 }}>
               HOME WORKOUT
             </div>
             <div style={{ fontSize:28, fontWeight:900 }}>Configure Session</div>
             <div style={{ fontSize:12, color:'#6B7280', marginTop:5 }}>
-              {Math.ceil(total / 60)} min total &nbsp;·&nbsp; {stations.length} stations
+              ~{totalMins} min · {stations.length} stations · 3 rounds per station
             </div>
           </div>
 
-          {/* Cards */}
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, maxWidth:720, margin:'0 auto 24px' }}>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, maxWidth:720, margin:'0 auto 20px' }}>
             {stations.map((s, i) => {
               const isOpen = openIdx === i;
+              const isMulti = s.rounds > 1;
               return (
                 <div key={s.id} style={{ background:'#13151F', borderRadius:10,
                   border:`1px solid ${isOpen ? s.color : '#1E2130'}`,
                   overflow:'hidden', transition:'border-color 0.2s' }}>
-
-                  {/* Card header */}
                   <div onClick={() => setOpenIdx(isOpen ? null : i)}
                     style={{ padding:'12px 13px', cursor:'pointer',
                       display:'flex', alignItems:'center', gap:10 }}>
@@ -207,46 +258,38 @@
                       <div style={{ fontSize:15, fontWeight:800 }}>{s.name}</div>
                       <div style={{ fontSize:11, color:'#6B7280',
                         whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
-                        {s.exercise}
+                        {s.exercises.join(' · ')}
                       </div>
                     </div>
                     <div style={{ textAlign:'right', flexShrink:0 }}>
-                      <div style={{ fontSize:15, fontWeight:800, color:s.color }}>{fmt(s.workSecs)}</div>
-                      <div style={{ fontSize:9, color:'#4B5280' }}>
-                        {s.restSecs > 0 ? `+${s.restSecs}s rest` : 'no rest'}
-                      </div>
+                      {isMulti
+                        ? <><div style={{ fontSize:13, fontWeight:800, color:s.color }}>{s.rounds}×{s.rw}s</div>
+                            <div style={{ fontSize:9, color:'#4B5280' }}>{s.rr}s rest</div></>
+                        : <><div style={{ fontSize:13, fontWeight:800, color:s.color }}>{fmt(s.workSecs)}</div>
+                            <div style={{ fontSize:9, color:'#4B5280' }}>continuous</div></>
+                      }
                     </div>
-                    <div style={{ color:'#4B5280', fontSize:11, marginLeft:2 }}>{isOpen ? '▲' : '▼'}</div>
+                    <div style={{ color:'#4B5280', fontSize:11 }}>{isOpen?'▲':'▼'}</div>
                   </div>
-
-                  {/* Editor */}
                   {isOpen && (
                     <div style={{ padding:'0 13px 14px', borderTop:'1px solid #1E2130' }}>
-                      <FL>Exercise Name</FL>
-                      <input value={s.exercise}
-                        onChange={e => onUpdate(i, 'exercise', e.target.value)}
-                        style={iBase} />
-
+                      {s.exercises.map((ex, ri) => (
+                        <div key={ri}>
+                          <FL>{s.rounds > 1 ? `Round ${ri+1} Exercise` : 'Exercise'}</FL>
+                          <input value={ex}
+                            onChange={e => {
+                              const next = [...s.exercises];
+                              next[ri] = e.target.value;
+                              onUpdate(i, 'exercises', next);
+                            }}
+                            style={iBase} />
+                        </div>
+                      ))}
                       <FL>Coaching Cue</FL>
                       <textarea value={s.cue}
                         onChange={e => onUpdate(i, 'cue', e.target.value)}
-                        rows={2}
+                        rows={3}
                         style={{ ...iBase, resize:'vertical', lineHeight:1.5 }} />
-
-                      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginTop:10 }}>
-                        <div>
-                          <FL>Work time</FL>
-                          <NumStepper value={s.workSecs}
-                            onChange={v => onUpdate(i, 'workSecs', v)}
-                            min={10} max={600} step={10} unit="sec" />
-                        </div>
-                        <div>
-                          <FL>Rest time</FL>
-                          <NumStepper value={s.restSecs}
-                            onChange={v => onUpdate(i, 'restSecs', v)}
-                            min={0} max={120} step={5} unit="sec" />
-                        </div>
-                      </div>
                     </div>
                   )}
                 </div>
@@ -254,9 +297,9 @@
             })}
           </div>
 
-          {/* HR Monitor toggle */}
+          {/* HR Monitor */}
           <div style={{ maxWidth:720, margin:'0 auto 20px' }}>
-            <div onClick={() => setShowHr(v => !v)}
+            <div onClick={() => setShowHr(v=>!v)}
               style={{ display:'flex', alignItems:'center', justifyContent:'space-between',
                 background:'#13151F', border:'1px solid #1E2130', borderRadius:10,
                 padding:'11px 14px', cursor:'pointer' }}>
@@ -267,36 +310,29 @@
                   <div style={{ fontSize:11, color:'#6B7280' }}>Apple Watch via local relay</div>
                 </div>
               </div>
-              <div style={{ color:'#4B5280', fontSize:11 }}>{showHr ? '▲' : '▼'}</div>
+              <div style={{ color:'#4B5280', fontSize:11 }}>{showHr?'▲':'▼'}</div>
             </div>
             {showHr && (
               <div style={{ background:'#13151F', border:'1px solid #1E2130',
                 borderTop:'none', borderRadius:'0 0 10px 10px', padding:'12px 14px' }}>
-                <FL>Relay server URL</FL>
-                <input
-                  value={hrUrl}
-                  onChange={e => onHrUrlChange(e.target.value)}
-                  placeholder="http://192.168.x.x:3000/hr"
-                  style={{ ...iBase }}
-                />
+                <FL>Relay Server URL</FL>
+                <input value={hrUrl} onChange={e=>onHrUrlChange(e.target.value)}
+                  placeholder="http://192.168.x.x:3000/hr" style={iBase} />
                 <div style={{ fontSize:10, color:'#4B5280', marginTop:6, lineHeight:1.5 }}>
-                  Run <code style={{ color:'#F97316' }}>node server.js</code> on your Mac,
-                  then paste the Network URL shown in the terminal here.
-                  Leave blank to skip heart rate.
+                  Run <code style={{ color:'#F97316' }}>node server.js</code> on your Mac and paste the Network URL here.
                 </div>
               </div>
             )}
           </div>
 
-          {/* Tags + Start */}
+          {/* Start */}
           <div style={{ maxWidth:720, margin:'0 auto', textAlign:'center' }}>
-            <div style={{ display:'flex', justifyContent:'center', gap:6,
-              flexWrap:'wrap', marginBottom:18 }}>
+            <div style={{ display:'flex', justifyContent:'center', gap:5, flexWrap:'wrap', marginBottom:18 }}>
               {stations.map(s => (
-                <div key={s.id} style={{ padding:'4px 10px', borderRadius:20,
+                <div key={s.id} style={{ padding:'3px 9px', borderRadius:20,
                   background:`${s.color}18`, border:`1px solid ${s.color}44`,
-                  fontSize:10, color:s.color, fontWeight:700 }}>
-                  {s.name} {fmt(s.workSecs)}
+                  fontSize:9, color:s.color, fontWeight:700 }}>
+                  {s.name}
                 </div>
               ))}
             </div>
@@ -313,30 +349,29 @@
     }
 
     // ── Session View ─────────────────────────────────────────────
-    function SessionView({ ws, stations, onStop, hrBpm }) {
+    function SessionView({ ws, stations, onStop, hrBpm, onNext, onPrev, isFirst, isLast }) {
       const st     = stations[ws.idx ?? 0];
-      const isWork = ws.phase === 'work';
-      const isRest = ws.phase === 'rest';
-      const isCd   = ws.phase === 'countdown';
-      const isDone = ws.phase === 'done';
+      const isWork      = ws.phase === 'work';
+      const isRoundRest = ws.phase === 'roundrest';
+      const isRest      = ws.phase === 'rest';
+      const isCd        = ws.phase === 'countdown';
+      const isDone      = ws.phase === 'done';
 
-      const accent = isWork  ? (st?.color ?? '#F97316')
-                   : isRest  ? '#3B82F6'
-                   : isDone  ? '#10B981'
-                   :            '#F97316';
+      const accent = isWork      ? (st?.color ?? '#F97316')
+                   : isRoundRest ? (st?.color ?? '#F97316')
+                   : isRest      ? '#3B82F6'
+                   : isDone      ? '#10B981'
+                   :               '#F97316';
 
       const offset = CIRC * (1 - (ws.progress ?? 0));
 
       return (
         <div style={{ background:'#0B0D14', minHeight:'100vh', color:'white',
-          display:'flex', flexDirection:'column',
-          alignItems:'center', justifyContent:'center',
+          display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
           padding:'20px', position:'relative' }}>
 
-          {/* HR Badge — top left */}
           <HRBadge bpm={hrBpm} />
 
-          {/* Stop */}
           <button onClick={onStop}
             style={{ position:'absolute', top:16, right:16, background:'#1E2130',
               border:'1px solid #2A2D40', color:'#6B7280', borderRadius:8,
@@ -344,19 +379,19 @@
             ✕ END
           </button>
 
-          {/* Progress dots */}
-          <div style={{ display:'flex', gap:7, marginBottom:30, alignItems:'center' }}>
+          {/* Station progress dots */}
+          <div style={{ display:'flex', gap:5, marginBottom:28, alignItems:'center', flexWrap:'wrap', justifyContent:'center', maxWidth:400 }}>
             {stations.map((s, i) => {
-              const done   = (ws.idx ?? 0) > i || isDone;
-              const active = (ws.idx ?? 0) === i && !isDone;
+              const done   = (ws.idx??0) > i || isDone;
+              const active = (ws.idx??0) === i && !isDone;
               return (
-                <div key={s.id} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:4 }}>
-                  <div style={{ width: active ? 30 : 9, height:9, borderRadius:5,
+                <div key={s.id} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:3 }}>
+                  <div style={{ width:active?24:8, height:8, borderRadius:4,
                     background: done ? s.color : active ? accent : '#1E2130',
                     transition:'all 0.4s' }} />
                   {active && (
-                    <div style={{ fontSize:7, color:accent, fontWeight:700, letterSpacing:'0.06em' }}>
-                      {isRest && ws.idx === i ? 'REST' : 'NOW'}
+                    <div style={{ fontSize:6, color:accent, fontWeight:700, letterSpacing:'0.06em' }}>
+                      {s.id}
                     </div>
                   )}
                 </div>
@@ -367,15 +402,16 @@
           {/* COUNTDOWN */}
           {isCd && (
             <div style={{ textAlign:'center' }}>
-              <div style={{ fontSize:13, color:'#6B7280', fontWeight:700,
-                letterSpacing:'0.25em', marginBottom:22 }}>GET READY</div>
+              <div style={{ fontSize:13, color:'#6B7280', fontWeight:700, letterSpacing:'0.25em', marginBottom:22 }}>
+                GET READY
+              </div>
               <div style={{ fontSize:140, fontWeight:900, color:'#F97316', lineHeight:1,
                 textShadow:'0 0 70px rgba(249,115,22,0.5)' }}>
                 {ws.cd}
               </div>
               <div style={{ fontSize:14, color:'#4B5280', marginTop:22 }}>
                 First up — <strong style={{ color:'white' }}>
-                  {stations[0].name}: {stations[0].exercise}
+                  {stations[0].name}: {stations[0].exercises[0]}
                 </strong>
               </div>
             </div>
@@ -393,83 +429,171 @@
               </div>
               <button onClick={onStop}
                 style={{ background:'#10B981', border:'none', color:'white',
-                  fontSize:15, fontWeight:800, padding:'14px 42px',
-                  borderRadius:10, cursor:'pointer' }}>
+                  fontSize:15, fontWeight:800, padding:'14px 42px', borderRadius:10, cursor:'pointer' }}>
                 ← Back to Config
               </button>
             </div>
           )}
 
-          {/* WORK / REST */}
-          {(isWork || isRest) && st && (
+          {/* WORK */}
+          {isWork && st && (
             <>
-              {/* Label */}
               <div style={{ fontSize:11, fontWeight:800, letterSpacing:'0.2em',
-                color:accent, marginBottom:6, textAlign:'center' }}>
-                {isWork
-                  ? `STATION ${(ws.idx ?? 0) + 1} OF ${stations.length}`
-                  : `REST — UP NEXT: STATION ${(ws.nextIdx ?? 0) + 1}`}
+                color:accent, marginBottom:4, textAlign:'center' }}>
+                STATION {(ws.idx??0)+1} OF {stations.length}
+              </div>
+              <div style={{ fontSize:30, fontWeight:900, marginBottom:2, textAlign:'center' }}>
+                {st.name}
+              </div>
+              <div style={{ fontSize:20, fontWeight:700, color:accent, marginBottom:6, textAlign:'center' }}>
+                {st.exercises[(ws.round??1)-1] ?? st.exercises[0]}
               </div>
 
-              {/* Station name */}
-              <div style={{ fontSize: isWork ? 32 : 20, fontWeight:900,
-                marginBottom:4, textAlign:'center' }}>
-                {isWork ? st.name : 'Active Recovery'}
-              </div>
-
-              {/* Exercise */}
-              {isWork && (
-                <div style={{ fontSize:21, fontWeight:700, color:accent,
-                  marginBottom:12, textAlign:'center' }}>
-                  {st.exercise}
+              <RoundDots round={ws.round} total={ws.totalRounds} color={accent} />
+              {ws.totalRounds > 1 && (
+                <div style={{ fontSize:10, color:'#6B7280', fontWeight:700,
+                  letterSpacing:'0.1em', marginBottom:8 }}>
+                  ROUND {ws.round} / {ws.totalRounds}
                 </div>
               )}
 
-              {/* Next preview */}
-              {isRest && ws.nextIdx != null && (
-                <div style={{ fontSize:13, color:'#6B7280', marginBottom:12, textAlign:'center' }}>
-                  {stations[ws.nextIdx].name} —&nbsp;
-                  <span style={{ color:'white', fontWeight:600 }}>
-                    {stations[ws.nextIdx].exercise}
-                  </span>
-                </div>
-              )}
-
-              {/* Circular timer */}
-              <div style={{ position:'relative', width:268, height:268, margin:'4px 0 12px' }}>
-                <svg width="268" height="268" style={{ transform:'rotate(-90deg)' }}>
-                  <circle cx="134" cy="134" r={R} fill="none" stroke="#1E2130" strokeWidth="13" />
-                  <circle cx="134" cy="134" r={R} fill="none"
-                    stroke={accent} strokeWidth="13" strokeLinecap="round"
+              <div style={{ position:'relative', width:248, height:248, margin:'4px 0 12px' }}>
+                <svg width="248" height="248" style={{ transform:'rotate(-90deg)' }}>
+                  <circle cx="124" cy="124" r={R} fill="none" stroke="#1E2130" strokeWidth="12" />
+                  <circle cx="124" cy="124" r={R} fill="none"
+                    stroke={accent} strokeWidth="12" strokeLinecap="round"
                     strokeDasharray={CIRC} strokeDashoffset={offset}
                     style={{ transition:'stroke-dashoffset 0.95s linear, stroke 0.5s ease' }} />
                 </svg>
                 <div style={{ position:'absolute', inset:0, display:'flex',
                   flexDirection:'column', alignItems:'center', justifyContent:'center' }}>
-                  <div style={{ fontSize:62, fontWeight:900, fontVariantNumeric:'tabular-nums',
-                    lineHeight:1, color: ws.left <= 5 ? '#EF4444' : 'white',
-                    transition:'color 0.3s' }}>
-                    {fmt(ws.left)}
+                  <div style={{ fontSize:58, fontWeight:900, fontVariantNumeric:'tabular-nums',
+                    lineHeight:1, color: ws.left<=5 ? '#EF4444' : 'white', transition:'color 0.3s' }}>
+                    {ws.left}
                   </div>
-                  <div style={{ fontSize:10, color:'#4B5280', fontWeight:700,
-                    marginTop:6, letterSpacing:'0.12em' }}>
-                    {isWork ? 'REMAINING' : 'REST'}
+                  <div style={{ fontSize:9, color:'#4B5280', fontWeight:700, marginTop:4, letterSpacing:'0.12em' }}>
+                    SECONDS
                   </div>
                 </div>
               </div>
 
-              {/* Cue */}
-              {isWork && (
-                <div style={{ maxWidth:350, width:'100%', textAlign:'center',
-                  padding:'12px 18px', background:'#13151F',
-                  border:`1px solid ${accent}55`, borderRadius:9 }}>
-                  <div style={{ fontSize:9, color:accent, fontWeight:700,
-                    letterSpacing:'0.12em', marginBottom:6 }}>COACHING CUE</div>
-                  <div style={{ fontSize:14, color:'#D1D5DB', lineHeight:1.7 }}>
-                    {st.cue}
+              <div style={{ maxWidth:340, width:'100%', textAlign:'center',
+                padding:'11px 16px', background:'#13151F',
+                border:`1px solid ${accent}55`, borderRadius:9 }}>
+                <div style={{ fontSize:9, color:accent, fontWeight:700, letterSpacing:'0.12em', marginBottom:5 }}>
+                  COACHING CUE
+                </div>
+                <div style={{ fontSize:13, color:'#D1D5DB', lineHeight:1.7 }}>{st.cue}</div>
+              </div>
+            </>
+          )}
+
+          {/* ROUND REST */}
+          {isRoundRest && st && (
+            <>
+              <div style={{ fontSize:11, fontWeight:800, letterSpacing:'0.2em',
+                color:accent, marginBottom:4, textAlign:'center' }}>
+                STATION {(ws.idx??0)+1} — {st.name.toUpperCase()}
+              </div>
+              <div style={{ fontSize:22, fontWeight:900, marginBottom:4, textAlign:'center', color:'#6B7280' }}>
+                Round {ws.round} done
+              </div>
+              {ws.round < ws.totalRounds
+                ? <div style={{ fontSize:13, color:'#4B5280', marginBottom:10, textAlign:'center' }}>
+                    Round {ws.round+1} coming up — <span style={{ color:'white' }}>
+                      {st.exercises[ws.round] ?? st.exercises[0]}
+                    </span>
+                  </div>
+                : stations[(ws.idx??0)+1]
+                  ? <div style={{ fontSize:13, color:'#4B5280', marginBottom:10, textAlign:'center' }}>
+                      Up next — <span style={{ color:'white', fontWeight:700 }}>
+                        {stations[(ws.idx??0)+1].name}
+                      </span>
+                      {' · '}{stations[(ws.idx??0)+1].exercises[0]}
+                    </div>
+                  : <div style={{ fontSize:13, color:'#4B5280', marginBottom:10, textAlign:'center' }}>
+                      Last station — finish strong
+                    </div>
+              }
+
+              <RoundDots round={ws.round} total={ws.totalRounds} color={accent} />
+
+              <div style={{ position:'relative', width:180, height:180, margin:'8px 0 12px' }}>
+                <svg width="180" height="180" style={{ transform:'rotate(-90deg)' }}>
+                  <circle cx="90" cy="90" r={72} fill="none" stroke="#1E2130" strokeWidth="10" />
+                  <circle cx="90" cy="90" r={72} fill="none"
+                    stroke={`${accent}88`} strokeWidth="10" strokeLinecap="round"
+                    strokeDasharray={+(2*Math.PI*72).toFixed(2)}
+                    strokeDashoffset={+(2*Math.PI*72*(1-(ws.progress??0))).toFixed(2)}
+                    style={{ transition:'stroke-dashoffset 0.95s linear' }} />
+                </svg>
+                <div style={{ position:'absolute', inset:0, display:'flex',
+                  flexDirection:'column', alignItems:'center', justifyContent:'center' }}>
+                  <div style={{ fontSize:46, fontWeight:900, fontVariantNumeric:'tabular-nums',
+                    lineHeight:1, color: ws.left<=3 ? '#EF4444' : '#6B7280', transition:'color 0.3s' }}>
+                    {ws.left}
+                  </div>
+                  <div style={{ fontSize:9, color:'#4B5280', fontWeight:700, letterSpacing:'0.1em', marginTop:4 }}>
+                    NEXT ROUND
                   </div>
                 </div>
-              )}
+              </div>
+            </>
+          )}
+
+          {/* Prev / Next nav */}
+          {!isCd && !isDone && (
+            <div style={{ display:'flex', gap:10, marginTop:18 }}>
+              <button onClick={onPrev} disabled={isFirst}
+                style={{ background:'#1A1D2E', border:'1px solid #252940', color: isFirst ? '#2A2D40' : '#9CA3AF',
+                  borderRadius:8, padding:'8px 20px', fontSize:12, fontWeight:700,
+                  cursor: isFirst ? 'default' : 'pointer', letterSpacing:'0.06em' }}>
+                ← PREV
+              </button>
+              <button onClick={onNext} disabled={isLast}
+                style={{ background:'#1A1D2E', border:'1px solid #252940', color: isLast ? '#2A2D40' : '#9CA3AF',
+                  borderRadius:8, padding:'8px 20px', fontSize:12, fontWeight:700,
+                  cursor: isLast ? 'default' : 'pointer', letterSpacing:'0.06em' }}>
+                NEXT →
+              </button>
+            </div>
+          )}
+
+          {/* INTER-STATION REST */}
+          {isRest && st && (
+            <>
+              <div style={{ fontSize:11, fontWeight:800, letterSpacing:'0.2em',
+                color:'#3B82F6', marginBottom:6, textAlign:'center' }}>
+                REST — UP NEXT: STATION {(ws.nextIdx??0)+1}
+              </div>
+              <div style={{ fontSize:26, fontWeight:900, marginBottom:4, textAlign:'center' }}>
+                {stations[ws.nextIdx??0]?.name}
+              </div>
+              <div style={{ fontSize:14, color:'#6B7280', marginBottom:14, textAlign:'center' }}>
+                <span style={{ color:'white', fontWeight:600 }}>
+                  {stations[ws.nextIdx??0]?.exercises[0]}
+                </span>
+              </div>
+
+              <div style={{ position:'relative', width:200, height:200, margin:'0 0 14px' }}>
+                <svg width="200" height="200" style={{ transform:'rotate(-90deg)' }}>
+                  <circle cx="100" cy="100" r={R} fill="none" stroke="#1E2130" strokeWidth="11" />
+                  <circle cx="100" cy="100" r={R} fill="none"
+                    stroke="#3B82F6" strokeWidth="11" strokeLinecap="round"
+                    strokeDasharray={CIRC} strokeDashoffset={offset}
+                    style={{ transition:'stroke-dashoffset 0.95s linear' }} />
+                </svg>
+                <div style={{ position:'absolute', inset:0, display:'flex',
+                  flexDirection:'column', alignItems:'center', justifyContent:'center' }}>
+                  <div style={{ fontSize:52, fontWeight:900, fontVariantNumeric:'tabular-nums',
+                    lineHeight:1, color: ws.left<=5 ? '#EF4444' : 'white', transition:'color 0.3s' }}>
+                    {ws.left}
+                  </div>
+                  <div style={{ fontSize:9, color:'#4B5280', fontWeight:700, marginTop:4, letterSpacing:'0.12em' }}>
+                    REST
+                  </div>
+                </div>
+              </div>
             </>
           )}
         </div>
@@ -486,21 +610,18 @@
       const [hrBpm,    setHrBpm]    = useState(null);
       const intRef  = useRef(null);
       const hrRef   = useRef(null);
-      const prevRef = useRef({ phase: null, left: null, cd: null });
+      const prevRef = useRef({ phase:null, left:null, cd:null });
 
       const ws = derive(stations, elapsed);
 
-      // HR polling — only during session
+      // HR polling
       useEffect(() => {
-        if (view !== 'session' || !hrUrl) {
-          clearInterval(hrRef.current);
-          return;
-        }
+        if (view !== 'session' || !hrUrl) { clearInterval(hrRef.current); return; }
         const poll = async () => {
           try {
             const res = await fetch(hrUrl, { signal: AbortSignal.timeout(2000) });
             const d   = await res.json();
-            if (d && d.bpm) setHrBpm(Number(d.bpm));
+            if (d?.bpm) setHrBpm(Number(d.bpm));
           } catch(e) {}
         };
         poll();
@@ -508,22 +629,23 @@
         return () => clearInterval(hrRef.current);
       }, [view, hrUrl]);
 
-      // Audio side-effects
+      // Audio
       useEffect(() => {
         if (!running) return;
         const p = prevRef.current;
         if (ws.phase !== p.phase) {
           if      (ws.phase === 'work' && p.phase === 'countdown') chime();
-          else if (ws.phase === 'work')  chime();
-          else if (ws.phase === 'rest')  chime();
-          else if (ws.phase === 'done') { fanfare(); setRunning(false); }
+          else if (ws.phase === 'work')    chime();
+          else if (ws.phase === 'roundrest') softChime();
+          else if (ws.phase === 'rest')    chime();
+          else if (ws.phase === 'done')  { fanfare(); setRunning(false); }
           p.phase = ws.phase;
         }
         if (ws.phase === 'countdown' && ws.cd !== p.cd) {
           if (ws.cd <= 3) tick();
           p.cd = ws.cd;
         }
-        if ((ws.phase === 'work' || ws.phase === 'rest') && ws.left !== p.left) {
+        if ((ws.phase === 'work' || ws.phase === 'roundrest' || ws.phase === 'rest') && ws.left !== p.left) {
           if (ws.left <= 3 && ws.left > 0) tick();
           p.left = ws.left;
         }
@@ -532,7 +654,7 @@
       // Timer
       useEffect(() => {
         if (running) {
-          intRef.current = setInterval(() => setElapsed(e => e + 1), 1000);
+          intRef.current = setInterval(() => setElapsed(e => e+1), 1000);
         } else {
           clearInterval(intRef.current);
         }
@@ -542,7 +664,7 @@
       const startWorkout = () => {
         setElapsed(-3);
         setHrBpm(null);
-        prevRef.current = { phase: 'countdown', left: null, cd: 3 };
+        prevRef.current = { phase:'countdown', left:null, cd:3 };
         setRunning(true);
         setView('session');
       };
@@ -552,10 +674,39 @@
         setView('config');
       };
       const updateStation = (i, field, val) =>
-        setStations(s => s.map((st, idx) => idx === i ? { ...st, [field]: val } : st));
+        setStations(s => s.map((st,idx) => idx===i ? {...st,[field]:val} : st));
+
+      const jumpToRound = (stationIdx, roundIdx) => {
+        prevRef.current = { phase: null, left: null, cd: null };
+        setElapsed(getRoundStart(stations, stationIdx, roundIdx));
+      };
+
+      const curIdx   = ws.phase === 'done' ? stations.length - 1 : (ws.idx ?? 0);
+      const curRound = (ws.round ?? 1) - 1; // 0-indexed
+
+      const goNext = () => {
+        const nextRound = curRound + 1;
+        if (nextRound < stations[curIdx].rounds) {
+          jumpToRound(curIdx, nextRound);               // next round same station
+        } else if (curIdx + 1 < stations.length) {
+          jumpToRound(curIdx + 1, 0);                   // first round of next station
+        }
+      };
+      const goPrev = () => {
+        const prevRound = curRound - 1;
+        if (prevRound >= 0) {
+          jumpToRound(curIdx, prevRound);               // prev round same station
+        } else if (curIdx - 1 >= 0) {
+          jumpToRound(curIdx - 1, 0);                   // first round of prev station
+        }
+      };
+
+      const isFirst = curIdx === 0 && curRound === 0;
+      const isLast  = curIdx === stations.length - 1 && curRound === stations[curIdx].rounds - 1;
 
       return view === 'session'
-        ? <SessionView ws={ws} stations={stations} onStop={stopWorkout} hrBpm={hrBpm} />
+        ? <SessionView ws={ws} stations={stations} onStop={stopWorkout} hrBpm={hrBpm}
+            onNext={goNext} onPrev={goPrev} isFirst={isFirst} isLast={isLast} />
         : <ConfigView  stations={stations} onUpdate={updateStation} onStart={startWorkout}
             hrUrl={hrUrl} onHrUrlChange={setHrUrl} />;
     }
