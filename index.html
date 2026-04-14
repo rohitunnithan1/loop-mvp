@@ -49,6 +49,16 @@
         cue:"Breathe into each stretch. Hold 20–30 seconds per area. Let the body slow down and relax." },
     ];
 
+    // ── HR zone helper ───────────────────────────────────────────
+    function hrZone(bpm) {
+      if (!bpm) return { color: '#4B5280', label: '—', bg: '#4B528018' };
+      if (bpm < 100) return { color: '#3B82F6', label: 'Zone 1', bg: '#3B82F618' };
+      if (bpm < 120) return { color: '#10B981', label: 'Zone 2', bg: '#10B98118' };
+      if (bpm < 140) return { color: '#F59E0B', label: 'Zone 3', bg: '#F59E0B18' };
+      if (bpm < 160) return { color: '#F97316', label: 'Zone 4', bg: '#F9731618' };
+      return { color: '#EF4444', label: 'Zone 5', bg: '#EF444418' };
+    }
+
     // ── Audio ────────────────────────────────────────────────────
     let _ac = null;
     function getCtx() {
@@ -128,9 +138,36 @@
       );
     }
 
+    // ── HR Badge ─────────────────────────────────────────────────
+    function HRBadge({ bpm }) {
+      const z = hrZone(bpm);
+      return (
+        <div style={{
+          position:'absolute', top:16, left:16,
+          background: z.bg,
+          border: `1px solid ${z.color}55`,
+          borderRadius:10, padding:'8px 14px',
+          display:'flex', flexDirection:'column', alignItems:'center', gap:2,
+          minWidth:72,
+        }}>
+          <div style={{ fontSize:9, color:z.color, fontWeight:700, letterSpacing:'0.12em' }}>
+            ♥ HEART RATE
+          </div>
+          <div style={{ fontSize:28, fontWeight:900, color: bpm ? z.color : '#4B5280',
+            lineHeight:1, fontVariantNumeric:'tabular-nums' }}>
+            {bpm ?? '––'}
+          </div>
+          <div style={{ fontSize:9, color: bpm ? z.color : '#4B5280', fontWeight:700, letterSpacing:'0.08em' }}>
+            {bpm ? 'BPM · ' + z.label : 'NO SIGNAL'}
+          </div>
+        </div>
+      );
+    }
+
     // ── Config View ──────────────────────────────────────────────
-    function ConfigView({ stations, onUpdate, onStart }) {
+    function ConfigView({ stations, onUpdate, onStart, hrUrl, onHrUrlChange }) {
       const [openIdx, setOpenIdx] = useState(null);
+      const [showHr, setShowHr]   = useState(false);
       const total = stations.reduce(
         (a,s,i) => a + s.workSecs + (i < stations.length-1 ? s.restSecs : 0), 0
       );
@@ -217,6 +254,40 @@
             })}
           </div>
 
+          {/* HR Monitor toggle */}
+          <div style={{ maxWidth:720, margin:'0 auto 20px' }}>
+            <div onClick={() => setShowHr(v => !v)}
+              style={{ display:'flex', alignItems:'center', justifyContent:'space-between',
+                background:'#13151F', border:'1px solid #1E2130', borderRadius:10,
+                padding:'11px 14px', cursor:'pointer' }}>
+              <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                <div style={{ fontSize:16 }}>♥</div>
+                <div>
+                  <div style={{ fontSize:13, fontWeight:700 }}>Heart Rate Monitor</div>
+                  <div style={{ fontSize:11, color:'#6B7280' }}>Apple Watch via local relay</div>
+                </div>
+              </div>
+              <div style={{ color:'#4B5280', fontSize:11 }}>{showHr ? '▲' : '▼'}</div>
+            </div>
+            {showHr && (
+              <div style={{ background:'#13151F', border:'1px solid #1E2130',
+                borderTop:'none', borderRadius:'0 0 10px 10px', padding:'12px 14px' }}>
+                <FL>Relay server URL</FL>
+                <input
+                  value={hrUrl}
+                  onChange={e => onHrUrlChange(e.target.value)}
+                  placeholder="http://192.168.x.x:3000/hr"
+                  style={{ ...iBase }}
+                />
+                <div style={{ fontSize:10, color:'#4B5280', marginTop:6, lineHeight:1.5 }}>
+                  Run <code style={{ color:'#F97316' }}>node server.js</code> on your Mac,
+                  then paste the Network URL shown in the terminal here.
+                  Leave blank to skip heart rate.
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Tags + Start */}
           <div style={{ maxWidth:720, margin:'0 auto', textAlign:'center' }}>
             <div style={{ display:'flex', justifyContent:'center', gap:6,
@@ -242,7 +313,7 @@
     }
 
     // ── Session View ─────────────────────────────────────────────
-    function SessionView({ ws, stations, onStop }) {
+    function SessionView({ ws, stations, onStop, hrBpm }) {
       const st     = stations[ws.idx ?? 0];
       const isWork = ws.phase === 'work';
       const isRest = ws.phase === 'rest';
@@ -261,6 +332,9 @@
           display:'flex', flexDirection:'column',
           alignItems:'center', justifyContent:'center',
           padding:'20px', position:'relative' }}>
+
+          {/* HR Badge — top left */}
+          <HRBadge bpm={hrBpm} />
 
           {/* Stop */}
           <button onClick={onStop}
@@ -408,10 +482,31 @@
       const [view,     setView]     = useState('config');
       const [elapsed,  setElapsed]  = useState(-3);
       const [running,  setRunning]  = useState(false);
+      const [hrUrl,    setHrUrl]    = useState('http://localhost:3000/hr');
+      const [hrBpm,    setHrBpm]    = useState(null);
       const intRef  = useRef(null);
+      const hrRef   = useRef(null);
       const prevRef = useRef({ phase: null, left: null, cd: null });
 
       const ws = derive(stations, elapsed);
+
+      // HR polling — only during session
+      useEffect(() => {
+        if (view !== 'session' || !hrUrl) {
+          clearInterval(hrRef.current);
+          return;
+        }
+        const poll = async () => {
+          try {
+            const res = await fetch(hrUrl, { signal: AbortSignal.timeout(2000) });
+            const d   = await res.json();
+            if (d && d.bpm) setHrBpm(Number(d.bpm));
+          } catch(e) {}
+        };
+        poll();
+        hrRef.current = setInterval(poll, 3000);
+        return () => clearInterval(hrRef.current);
+      }, [view, hrUrl]);
 
       // Audio side-effects
       useEffect(() => {
@@ -446,6 +541,7 @@
 
       const startWorkout = () => {
         setElapsed(-3);
+        setHrBpm(null);
         prevRef.current = { phase: 'countdown', left: null, cd: 3 };
         setRunning(true);
         setView('session');
@@ -459,8 +555,9 @@
         setStations(s => s.map((st, idx) => idx === i ? { ...st, [field]: val } : st));
 
       return view === 'session'
-        ? <SessionView ws={ws} stations={stations} onStop={stopWorkout} />
-        : <ConfigView  stations={stations} onUpdate={updateStation} onStart={startWorkout} />;
+        ? <SessionView ws={ws} stations={stations} onStop={stopWorkout} hrBpm={hrBpm} />
+        : <ConfigView  stations={stations} onUpdate={updateStation} onStart={startWorkout}
+            hrUrl={hrUrl} onHrUrlChange={setHrUrl} />;
     }
 
     ReactDOM.createRoot(document.getElementById('root')).render(<WorkoutApp />);
