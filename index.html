@@ -349,7 +349,7 @@
     }
 
     // ── Session View ─────────────────────────────────────────────
-    function SessionView({ ws, stations, onStop, hrBpm, onNext, onPrev, isFirst, isLast }) {
+    function SessionView({ ws, stations, onStop, hrBpm, onNext, onPrev, isFirst, isLast, running, onTogglePause }) {
       const st     = stations[ws.idx ?? 0];
       const isWork      = ws.phase === 'work';
       const isRoundRest = ws.phase === 'roundrest';
@@ -541,7 +541,7 @@
             </>
           )}
 
-          {/* Prev / Next nav */}
+          {/* Prev / Pause / Next nav */}
           {!isCd && !isDone && (
             <div style={{ display:'flex', gap:10, marginTop:18 }}>
               <button onClick={onPrev} disabled={isFirst}
@@ -549,6 +549,13 @@
                   borderRadius:8, padding:'8px 20px', fontSize:12, fontWeight:700,
                   cursor: isFirst ? 'default' : 'pointer', letterSpacing:'0.06em' }}>
                 ← PREV
+              </button>
+              <button onClick={onTogglePause}
+                style={{ background: running ? '#1A1D2E' : '#F97316', color: running ? '#F97316' : 'white',
+                  border: running ? '1px solid #F97316' : 'none',
+                  borderRadius:8, padding:'8px 24px', fontSize:12, fontWeight:700,
+                  cursor:'pointer', letterSpacing:'0.06em', minWidth:80 }}>
+                {running ? '⏸ PAUSE' : '▶ RESUME'}
               </button>
               <button onClick={onNext} disabled={isLast}
                 style={{ background:'#1A1D2E', border:'1px solid #252940', color: isLast ? '#2A2D40' : '#9CA3AF',
@@ -706,7 +713,8 @@
 
       return view === 'session'
         ? <SessionView ws={ws} stations={stations} onStop={stopWorkout} hrBpm={hrBpm}
-            onNext={goNext} onPrev={goPrev} isFirst={isFirst} isLast={isLast} />
+            onNext={goNext} onPrev={goPrev} isFirst={isFirst} isLast={isLast}
+            running={running} onTogglePause={() => setRunning(r => !r)} />
         : <ConfigView  stations={stations} onUpdate={updateStation} onStart={startWorkout}
             hrUrl={hrUrl} onHrUrlChange={setHrUrl} />;
     }
